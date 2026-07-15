@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Users & Authentication
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("customer")
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders    Order[]
+  cartItems CartItem[]
+}
+
+// Products
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  image       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+}
+
+model Product {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  description String?
+  price     Float
+  cost      Float
+  stock     Int
+  minStock  Int      @default(10)
+  image     String?
+  images    String[]
+  category  Category @relation(fields: [categoryId], references: [id])
+  categoryId String
+  sizes     String[]
+  colors    String[]
+  rating    Float    @default(0)
+  discount  Float    @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+  stockLogs  StockLog[]
+}
+
+// Cart
+model CartItem {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  size      String?
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId, size, color])
+}
+
+// Orders
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+  items           OrderItem[]
+  subtotal        Float
+  tax             Float
+  shipping        Float
+  discount        Float
+  total           Float
+  status          String   @default("pending")
+  paymentMethod   String
+  paymentStatus   String   @default("pending")
+  shippingAddress String
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  financialRecords FinancialRecord[]
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  price     Float
+  size      String?
+  color     String?
+  createdAt DateTime @default(now())
+}
+
+// Stock Management
+model StockLog {
+  id        String   @id @default(cuid())
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  type      String   // "in", "out", "adjustment"
+  quantity  Int
+  reason    String?
+  createdAt DateTime @default(now())
+}
+
+// Financial
+model FinancialRecord {
+  id             String   @id @default(cuid())
+  order          Order?   @relation(fields: [orderId], references: [id])
+  orderId        String?
+  type           String   // "income", "expense"
+  category       String
+  amount         Float
+  description    String?
+  syncedToSheets Boolean  @default(false)
+  syncDate       DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model SyncLog {
+  id          String   @id @default(cuid())
+  type        String   // "sales", "stock", "financial"
+  status      String   // "success", "failed"
+  message     String?
+  recordCount Int
+  createdAt   DateTime @default(now())
+}
+
+// Promo
+model Promo {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  type      String   // "percentage", "fixed"
+  value     Float
+  maxUse    Int
+  used      Int      @default(0)
+  startDate DateTime
+  endDate   DateTime
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
